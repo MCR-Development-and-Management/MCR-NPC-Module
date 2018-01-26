@@ -1,0 +1,319 @@
+options:
+	module:NPC Module
+	modulever: 1.2
+
+on load:
+	if {mineplex.modulesapi.online} is true:
+		loop {mineplex::modules::*}:
+			if loop-value is "{@module}":
+				delete  {mineplex::modules::%loop-index%}
+		add "{@module}" to {mineplex::modules::*}
+		broadcast "&9MCR Modules> &7Loaded the &e{@module} v{@modulever}&7!"
+	else:
+		broadcast "&9MCR Modules> &7Error when enabling &e{@module} {@modulever}&7: MCR is not loaded or not updated to &eMCR 2.2&7!"
+on unload:
+	remove "{@module}" from {mineplex::modules::*}
+
+# NPC Command 
+					
+command /npc [<string>] [<string>] [<string>]:
+	permission: mineplex.jrdev
+	permission message: &9Permissions> &7This requires Permission Rank [&9JR.DEV&7].
+	trigger:
+		if arg-1 is set:
+			if arg-1 is "add":
+				if arg-2 is set:
+					if arg-2 parsed as an entity type is set:
+						if arg-3 is set:
+							spawn arg-2 parsed as an entity type at location of player
+							set {_n} to last spawned entity
+							add "{NoAI:1}" to nbt of {_n}
+							set metadata value "Check" of last spawned entity to "NPC"
+							apply slowness 255 to {_n} for 999 days
+							set name of last spawned entity to "%coloured arg-3%"
+							stop
+						else:
+							spawn arg-2 parsed as an entity type at location of player
+							set metadata value "Check" of last spawned entity to "NPC"
+							set {_n} to last spawned entity
+							add "{NoAI:1}" to nbt of {_n}
+							apply slowness 255 to {_n} for 999 days
+							stop
+					else:
+						send "&9NpcManager> &7Unknown entity type [&e%arg-2%&7]." to sender
+						stop
+				else:
+					send "&9NpcManager> &7Please specify an entity type."
+			if arg-1 is "del":
+				set {npcdel.%player%} to true
+				send "&9NpcManager> &7Right click on an NPC to delete it from the database."
+			if arg-1 is "home":
+				send "&9NpcManager> &7Teleporting all NPC's to their home positions."
+				wait 4 seconds
+				send "&9NpcManager> &7All NPC's were teleported to their home positions."
+			if arg-1 is "clear":
+				send "&9NpcManager> &7All NPC's have been removed from the database." to sender
+				loop all entities:
+					if metadata value "Check" of loop-entity is "NPC":
+						kill loop-entity
+					else:
+						stop
+				send "&9NpcManager> &7All NPC's have been removed from the database." to sender
+			if arg-1 is "refresh":
+				send "&9NpcManager> &7The npc database has been refreshed."
+		else:
+			send "&9NpcManager> &7Commands List:"
+			send "&c/npc add <type> [name] &7Create a new NPC. &cDev"
+			send "&c/npc del &7Right click NPC to delete. &cDev"
+			send "&c/npc home &7Teleport NPC's to home locations. &cDev"
+			send "&c/npc clear &7Deletes all NPC's. &cDev"
+			send "&c/npc refresh &7Refresh NPC's from the database. &cDev"
+			
+every 3 seconds:
+	loop all entities:
+		if metadata value "Check" of loop-entity is "NPC":
+			set {_n} to loop-entity
+			add "{NoAI:1}" to {_n}
+		
+on damage:
+	if attacker is a player:
+		if victim is not a player:
+			if metadata value "Check" of victim is "NPC":
+				cancel event
+			else:
+				stop
+
+on right click on entity:
+	if {npcdel.%player%} is true:
+		if metadata value "Check" of event-entity is "NPC":
+			delete {npcdel.%player%}
+			kill event-entity
+			send "&9NpcManager> &7The target NPC was removed." to player
+			stop
+		if metadata value "Check" of event-entity is not set:
+			send "&9NpcManager> &7The target entity is not an NPC in the database." to player
+			stop
+	else:
+		stop
+
+#Npc Manager
+
+command /debug:
+	permission: mineplex.dev
+	permission message: &9Permissions> &7This requires Permission Rank [&9DEV&7].
+	trigger:
+		if {mineplex.debug} is not set:
+			set {mineplex.debug} to true
+			broadcast "&9Debug> &7Enabled Debug."
+		else:
+			delete {mineplex.debug}
+			broadcast "&9Debug> &7Disabled Debug."
+
+function guiBuild(p: player , t: text , n: text) :: string:
+	if {_t} is "main":
+		close {_p}'s inventory
+		wait 2 ticks
+		open chest with 6 rows named "%{_n}%" to {_p}
+		wait 2 ticks
+		format slot 4 of {_p} with diamond block named "&aClick to join instantly!" to be unstealable
+		format slot 40 of {_p} with gold block named "&b0 Games In Progress" with lore "&f&nClick to Spectate" to close then run [guiBuild({_p}, "spec", "%{_n}%")]
+	else if {_t} is "spec":
+		close {_p}'s inventory
+		wait 2 ticks
+		open chest with 6 rows named "%{_n}%" to {_p}
+		format slot 4 of {_p} with bed item named "&7⇽ Go Back" with lore "&f&nClick to Spectate" to close then run [guiBuild({_p}, "main", "%{_n}%")]
+
+command /npc-setup [<string>]:
+	permission: mineplex.jrdev
+	permission message: &9Permissions> &7This requires Permission Rank [&9JR.DEV&7].
+	trigger:
+		if x-coordinate of block below target entity is set:
+			if arg 1 is "add":
+				send "&9NpcManager> &7Atempted automatic add to the NPC File."
+				set {_li} to lines of "plugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat"
+				write "%nl%%name of target entity%| BL | %x-coordinate of block below target entity% %y-coordinate of block below target entity% %z-coordinate of block below target entity%" to "plugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat"
+			send "&9NpcManager> &7Please add the following line to &eplugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat"
+			send "%name of target entity%| BL | %x-coordinate of block below target entity% %y-coordinate of block below target entity% %z-coordinate of block below target entity%"
+
+on right click on entity:
+	set {_tent::*} to file contents of "plugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat"
+	loop {_tent::*}:
+		set {_pros.%loop-index%::*} to loop-value split at "|"
+		set {_cords.%loop-index%::*} to {_pros.%loop-index%::3} split at " "
+		set {_x} to {_cords.%loop-index%::2} parsed as a number
+		set {_y} to {_cords.%loop-index%::3} parsed as a number
+		set {_z} to {_cords.%loop-index%::4} parsed as a number
+		if {mineplex.debug} is set:
+			set {_x} to {_cords.%loop-index%::2} parsed as a number
+			set {_y} to {_cords.%loop-index%::3} parsed as a number
+			set {_z} to {_cords.%loop-index%::4} parsed as a number
+			broadcast "%{_cords.%loop-index%::2}%"
+			broadcast "%{_cords.%loop-index%::3}%"
+			broadcast "%{_cords.%loop-index%::4}%"
+			broadcast "compared to"
+			broadcast "%x-coordinate of block below event-entity%"
+			broadcast "%y-coordinate of block below event-entity%"
+			broadcast "%z-coordinate of block below event-entity%"
+		if location of block below event-entity is location({_x}, {_y}, {_z}, event-world):
+			if name of clicked entity contains "%{_pros.%loop-index%::1}%":
+				cancel event
+				open chest with 6 rows named "%{_pros.%loop-index%::1}%" to player
+				wait 2 ticks
+				format slot 4 of player with diamond block named "&aClick to join instantly!" to be unstealable
+				format slot 40 of player with gold block named "&b0 Games In Progress" with lore "&f&nClick to Spectate" to close then run [guiBuild(player, "spec", "%{_pros.%loop-index%::1}%")]
+
+on inventory click:
+	if name of clicked item is "&7⇽ Go Back":
+		if inventory name of player's current inventory is not "            Confirmation" or "Inventory":
+			guiBuild(player, "main", "%inventory name of player's current inventory%")
+
+on load:
+	if file "plugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat" doesn't exists:
+		create file "plugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat"
+
+command /fetch:
+	trigger:
+		set {_tent::*} to file contents of "plugins/Mineplex-Core-Remake/Modules/NPC/ServerManager.dat"
+		loop {_tent::*}:
+			set {_pros.%loop-index%::*} to loop-value split at "|"
+			broadcast "&3---=+&cPrintout&3+=---"
+			broadcast "&bDisplay: &a%{_pros.%loop-index%::1}%"
+			broadcast "&bGroup: &a%{_pros.%loop-index%::2}%"
+			broadcast "&bCords: &a%{_pros.%loop-index%::3}%"
+			broadcast "&3---=+&cPrintout&3+=---"
+
+# MOB Command
+
+command /mob [<string>] [<string>]:
+	permission: mineplex.admin
+	permission message: &9Permissions> &7This requires Permission Rank [&9ADMIN&7].
+	trigger:
+		if arg-1 is set:
+			if arg-1 is "kill":
+				if arg-2 is set:
+					if arg-2 parsed as an entity type is set:
+						set {_mob} to arg-2 parsed as an entity type
+						loop all entities:
+							if event-entity is {_mob}:
+								kill event-entity
+					else:
+						send "&9Mob Spawner> &7Unknown Mob Type [&e%arg-1%&7]."
+				else:
+					send "&9Mob Spawner> &7Commands List:"
+					send "&4/mob <mob type> [<amount>] Admin"
+					send "&4/mob kill <mob type> Admin"
+			else:
+				if arg-1 parsed as an entity type is set:
+					if arg-2 is set:
+						if arg-2 is an integer:
+							send "&9Mob Spawner> &7Spawning &e%arg-2% %arg-1%'s&7."
+							set {_a} to arg 2 parsed as a number
+							loop {_a} times:
+								spawn arg-1 parsed as an entity type above target block
+							stop
+						else:
+							send "&9Mob> &7Unknown Amount [&e%arg-2%&7]."
+							stop
+					else:
+						send "&9Mob Spawner> &7No mob count specified. Defaulting to 1."
+						send "&9Mob Spawner> &7Spawning &e1 %arg-1%'s&7."
+						loop 1 times:
+							spawn arg-1 parsed as an entity type above target block
+						stop
+				else:
+					send "&9Mob Spawner> &7Unknown Mob Type [&e%arg-1%&7]."
+					stop
+		else:
+			send "&9Mob Spawner> &7Listing mobs:" to sender
+			set {_creepera} to amount of creepers
+			if {_creepera} >= 1:
+				send "&2Creepers&f: %{_creepera}%"
+				delete {_creepera}
+			set {_cowa} to amount of cows
+			if {_cowa} >= 1:
+				send "&2cows&f: %{_cowa}%"
+				delete {_cowa}
+			set {_sheepa} to amount of sheeps
+			if {_sheepa} >= 1:
+				send "&2sheeps&f: %{_sheepa}%"
+				delete {_sheepa}
+			set {_piga} to amount of pigs
+			if {_piga} >= 1:
+				send "&2pigs&f: %{_piga}%"
+				delete {_piga}
+			set {_mooshrooma} to amount of mooshrooms
+			if {_mooshrooma} >= 1:
+				send "&2mooshrooms&f: %{_mooshrooma}%"
+				delete {_mooshrooma}
+			set {_rabbita} to amount of rabbits
+			if {_rabbita} >= 1:
+				send "&2rabbits&f: %{_rabbita}%"
+				delete {_rabbita}
+			set {_horsea} to amount of horses
+			if {_horsea} >= 1:
+				send "&2horses&f: %{_horsea}%"
+				delete {_horsea}
+			set {_squida} to amount of squids
+			if {_squida} >= 1:
+				send "&2squids&f: %{_squida}%"
+				delete {_squida}
+			set {_spidera} to amount of spiders
+			if {_spidera} >= 1:
+				send "&2spiders&f: %{_spidera}%"
+				delete {_spidera}
+			set {_blazea} to amount of blazes
+			if {_blazea} >= 1:
+				send "&2blazes&f: %{_blazea}%"
+				delete {_blazea}
+			set {_donkeya} to amount of donkeys
+			if {_donkeya} >= 1:
+				send "&2donkeys&f: %{_donkeya}%"
+				delete {_donkeya}
+			set {_wolfa} to amount of wolves
+			if {_wolfa} >= 1:
+				send "&2wolfs&f: %{_wolfa}%"
+				delete {_wolfa}
+			set {_ocelota} to amount of ocelots
+			if {_ocelota} >= 1:
+				send "&2ocelots&f: %{_ocelota}%"
+				delete {_ocelota}
+			set {_bata} to amount of bats
+			if {_bata} >= 1:
+				send "&2bats&f: %{_bata}%"
+				delete {_bata}
+			set {_villagera} to amount of villagers
+			if {_villagera} >= 1:
+				send "&2villagers&f: %{_villagera}%"
+				delete {_villagera}
+			set {_skeletona} to amount of skeletons
+			if {_skeletona} >= 1:
+				send "&2skeletons&f: %{_skeletona}%"
+				delete {_skeletona}
+			set {_guardiana} to amount of guardians
+			if {_guardiana} >= 1:
+				send "&2guardians&f: %{_guardiana}%"
+				delete {_guardiana}
+			set {_zombiea} to amount of zombies
+			if {_zombiea} >= 1:
+				send "&2zombies&f: %{_zombiea}%"
+				delete {_zombiea}
+			set {_ghasta} to amount of ghasts
+			if {_ghasta} >= 1:
+				send "&2ghasts&f: %{_ghasta}%"
+				delete {_ghasta}
+			set {_slimea} to amount of slimes
+			if {_slimea} >= 1:
+				send "&2slimes&f: %{_slimea}%"
+				delete {_slimea}
+			set {_silverfisha} to amount of silverfishes
+			if {_silverfisha} >= 1:
+				send "&2silverfishs&f: %{_silverfisha}%"
+				delete {_silverfisha}
+			set {_endermitea} to amount of endermites
+			if {_endermitea} >= 1:
+				send "&2endermites&f: %{_endermitea}%"
+				delete {_endermitea}
+			set {_witcha} to amount of witches
+			if {_witcha} >= 1:
+				send "&2witchs&f: %{_witcha}%"
+				delete {_witcha}
