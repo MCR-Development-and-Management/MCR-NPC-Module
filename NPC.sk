@@ -18,7 +18,7 @@ on unload:
 					
 command /npc [<string>] [<string>] [<string>]:
 	permission: mineplex.jrdev
-	permission message: &9Permissions> &7This requires Permission Rank [&9JR.DEV&7].
+	permission message: &9Permissions> &7You do not have permission to do that.
 	trigger:
 		if arg-1 is set:
 			if arg-1 is "add":
@@ -100,7 +100,7 @@ on right click on entity:
 
 command /debug:
 	permission: mineplex.dev
-	permission message: &9Permissions> &7This requires Permission Rank [&9DEV&7].
+	permission message: &9Permissions> &7You do not have permission to do that.
 	trigger:
 		if {mineplex.debug} is not set:
 			set {mineplex.debug} to true
@@ -125,7 +125,7 @@ function guiBuild(p: player , t: text , n: text) :: string:
 
 command /npc-setup [<string>]:
 	permission: mineplex.jrdev
-	permission message: &9Permissions> &7This requires Permission Rank [&9JR.DEV&7].
+	permission message: &9Permissions> &7You do not have permission to do that.
 	trigger:
 		if x-coordinate of block below target entity is set:
 			if arg 1 is "add":
@@ -186,7 +186,7 @@ command /fetch:
 
 command /mob [<string>] [<string>]:
 	permission: mineplex.admin
-	permission message: &9Permissions> &7This requires Permission Rank [&9ADMIN&7].
+	permission message: &9Permissions> &7You do not have permission to do that.
 	trigger:
 		if arg-1 is set:
 			if arg-1 is "kill":
